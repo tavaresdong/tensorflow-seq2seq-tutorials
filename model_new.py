@@ -193,17 +193,6 @@ class Seq2SeqModel():
                 return tf.contrib.layers.linear(outputs, self.vocab_size, scope=scope)
 
             if not self.attention:
-                #decoder_fn_train = seq2seq.simple_decoder_fn_train(encoder_state=self.encoder_state)
-                #decoder_fn_inference = seq2seq.simple_decoder_fn_inference(
-                #    output_fn=output_fn,
-                #    encoder_state=self.encoder_state,
-                #    embeddings=self.embedding_matrix,
-                #    start_of_sequence_id=self.EOS,
-                #    end_of_sequence_id=self.EOS,
-                #    maximum_length=tf.reduce_max(self.encoder_inputs_length) + 3,
-                #    num_decoder_symbols=self.vocab_size,
-                #)
-
                 max_time, batch_size, _ = tf.unstack(tf.shape(self.decoder_train_inputs_embedded))
 
                 helper = tf.contrib.seq2seq.TrainingHelper(
@@ -237,22 +226,18 @@ class Seq2SeqModel():
 
             # Dynamic decoding
             decoder_outputs_train, _, _ = tf.contrib.seq2seq.dynamic_decode(self.decoder,
-                                                                    output_time_major=True,
-                                                                    scope=scope)
+                                                                            output_time_major=True,
+                                                                            scope=scope)
             self.decoder_logits_train = decoder_outputs_train.rnn_output
-            #self.decoder_logits_train = output_fn(self.decoder_outputs_train)
-
-            print(self.decoder_logits_train.shape)
             self.decoder_prediction_train = tf.argmax(self.decoder_logits_train, axis=-1, name='decoder_prediction_train')
 
+
+            # Dynamic decoding for inference
             scope.reuse_variables()
 
-
-            (decoder_outputs_inference,
-             _,
-             _) = tf.contrib.seq2seq.dynamic_decode(self.infer_decoder,
-                                                    output_time_major=True,
-                                                    scope=scope)
+            decoder_outputs_inference, _, _ = tf.contrib.seq2seq.dynamic_decode(self.infer_decoder,
+                                                                                output_time_major=True,
+                                                                                scope=scope)
 
             self.decoder_logits_inference = decoder_outputs_inference.rnn_output
 
