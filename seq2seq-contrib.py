@@ -17,6 +17,7 @@ with tf.Session() as session:
                          vocab_size=10,
                          attention=False,
                          bidirectional=False,
+                         beam_search=True,
                          debug=False)
     session.run(tf.global_variables_initializer())
 

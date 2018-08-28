@@ -56,7 +56,11 @@ class Seq2SeqModel():
             self._init_simple_encoder()
 
         self._init_decoder()
-        self._init_decoder_predict()
+
+        if self.beam_search:
+            self._init_beamsearch_predict()
+        else:
+            self._init_decoder_predict()
 
         self._init_optimizer()
 
@@ -255,6 +259,31 @@ class Seq2SeqModel():
 
             self.decoder_logits_inference = decoder_outputs_inference.rnn_output
             self.decoder_prediction_inference = tf.argmax(self.decoder_logits_inference, axis=-1, name='decoder_prediction_inference')
+
+    def _init_beamsearch_predict(self):
+        # Beam search decoder need no helper
+        with tf.variable_scope("Decoder", reuse=True) as scope:
+            max_time, batch_size, _ = tf.unstack(tf.shape(self.decoder_train_inputs_embedded))
+            decoder_initial_state = tf.contrib.seq2seq.tile_batch(
+                self.encoder_state, 5
+            )
+            projection_layer = tf.layers.Dense(self.vocab_size, use_bias=False)
+            self.predicting_decoder = tf.contrib.seq2seq.BeamSearchDecoder(
+                cell=self.decoder_cell,
+                embedding=self.embedding_matrix,
+                start_tokens=tf.fill([batch_size], self.EOS),
+                end_token=self.EOS,
+                initial_state=decoder_initial_state,
+                beam_width=5,
+                output_layer=projection_layer
+            )
+
+            decoder_outputs_inference, _, _ = tf.contrib.seq2seq.dynamic_decode(self.predicting_decoder,
+                                                                                output_time_major=True,
+                                                                                scope=scope)
+            self.decoder_logits_inference = decoder_outputs_inference.predicted_ids
+            self.decoder_prediction_inference = self.decoder_logits_inference[:,:,0]
+
 
     def _init_optimizer(self):
         logits = tf.transpose(self.decoder_logits_train, [1, 0, 2])
